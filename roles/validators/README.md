@@ -34,7 +34,7 @@
         - [Configure your validator keys](#configure-your-validator-keys)
     - [Advanced](#advanced)
         - [Bonding Preferences](#bonding-preferences)
-        - [Staking Preferences](#staking-preferences)
+        - [Validating Preferences](#validating-preferences)
     - [Nominating](#nominating)
 - [Troubleshooting](#troubleshooting)
     - [Session Key](#session-key)
