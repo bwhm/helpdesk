@@ -25,7 +25,7 @@
 </div>
 
 # Table of contents
-
+<!-- TOC START min:1 max:4 link:true asterisk:false update:true -->
 - [Overview](#overview)
 - [Contribute](#contribute)
 - [Get Paid to Participate](#get-paid-to-participate)
@@ -41,6 +41,7 @@
 - [Advanced Users](#advanced-users)
 - [Glossary](#glossary)
 - [Troubleshooting](#troubleshooting)
+<!-- TOC END -->
 
 # Overview
 This repo contains detailed guides and help for user to interact with our current [testnet](http://testnet.joystream.org/).
@@ -187,7 +188,9 @@ The contributor must include either their Joystream or monero address when submi
 Payouts will be made on agreement.
 
 # Advanced Users
-This section covers other things you can do after [getting started](#getting-started), that isn't a paid role as of now.
+This section covers other things you can do after [getting started](#get-started), that isn't a paid role as of now.
+
+Go [here](/advanced) to learn more.
 
 
 # Glossary

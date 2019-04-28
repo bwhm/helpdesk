@@ -8,7 +8,7 @@
 
 
 # Table of contents
-
+<!-- TOC START min:1 max:3 link:true asterisk:false update:true -->
 - [Overview](#overview)
 - [Instructions](#instructions)
 - [On your Machine](#on-your-machine)
@@ -34,12 +34,12 @@
         - [Configure your validator keys](#configure-your-validator-keys)
     - [Advanced](#advanced)
         - [Bonding Preferences](#bonding-preferences)
-        - [Staking Preferences](#staking-preferences)
-    - [Nominating](#nominating)
+        - [Validating Preferences](#validating-preferences)
+- [Nominating](#nominating)
 - [Troubleshooting](#troubleshooting)
     - [Session Key](#session-key)
     - [Unstaking](#unstaking)
-
+<!-- TOC END -->
 
 # Overview
 
@@ -457,7 +457,7 @@ p + (v/(v+n1+n2)*(r-p))
 ```
 
 
-## Nominating
+# Nominating
 
 If you want to get some return on your tokens without running a node yourself, you can `nominate` another `validator` and get a share of their rewards.
 
