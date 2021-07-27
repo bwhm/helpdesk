@@ -549,7 +549,7 @@ There are two ways of doing this. As it takes quite a long time for a restarted 
 1. Avoiding downtime:
 ```
 $ cd ~/joystream/utils/
-$ nano utils/stringToBytes.ts
+$ nano src/stringToBytes.ts
 
 # Edit the constant:
 const stringToConvert = "example"
