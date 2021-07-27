@@ -165,8 +165,8 @@ Open the terminal:
 ```
 $ cd ~/
 # 64 bit debian based Linux
-$ wget https://github.com/Joystream/joystream/releases/download/v9.3.0/joystream-node-5.1.0-9d9e77751-x86_64-linux-gnu.tar.gz
-$ tar -vxf joystream-node-5.1.0-9d9e77751-x86_64-linux-gnu.tar.gz
+$ wget https://github.com/Joystream/joystream/releases/download/v9.7.0/joystream-node-5.5.0-f09b3f6dd-x86_64-linux-gnu.tar.gz
+$ tar -vxf joystream-node-5.5.0-f09b3f6dd-x86_64-linux-gnu.tar.gz
 # armv7 (eg. raspberry pi)
 $ wget TBD
 $ tar -vxf TBD
