@@ -16,15 +16,24 @@ Table of Contents
   - [Install IPFS](#install-ipfs)
     - [Configure IPFS](#configure-ipfs)
     - [Run IPFS as a service](#run-ipfs-as-a-service)
+    - [Update IPFS](#update-ipfs)
   - [Setup Hosting](#setup-hosting)
     - [Instructions](#instructions-1)
     - [Run caddy as a service](#run-caddy-as-a-service)
   - [Install and Setup the Storage Node](#install-and-setup-the-storage-node)
-  - [Update Your Storage Node](#update-your-storage-node)
     - [Applying for a Storage Provider opening](#applying-for-a-storage-provider-opening)
     - [Setup and configure the storage node](#setup-and-configure-the-storage-node)
+    - [Check that you are syncing](#check-that-you-are-syncing)
+    - [Set an Empty Storage URL](#set-an-empty-storage-url)
     - [Run storage node as a service](#run-storage-node-as-a-service)
+    - [Enable the Public URL When Synced](#enable-the-public-url-when-synced)
     - [Verify everything is working](#verify-everything-is-working)
+  - [Update Your Storage Node](#update-your-storage-node)
+    - [Update Colossus](#update-colossus)
+  - [Update Older Storage Nodes](#update-older-storage-nodes)
+    - [Update IPFS and Caddy](#update-ipfs-and-caddy)
+    - [Update Colossus](#update-colossus-1)
+    - [Start Up](#start-up-1)
 - [Troubleshooting](#troubleshooting)
   - [Port not set](#port-not-set)
   - [No tokens in role account](#no-tokens-in-role-account)
@@ -68,8 +77,8 @@ $ apt-get install libcap2-bin
 ## Install IPFS
 The storage node uses [IPFS](https://ipfs.io/) as backend.
 ```
-$ wget https://github.com/ipfs/go-ipfs/releases/download/v0.8.0/go-ipfs_v0.8.0_linux-amd64.tar.gz
-$ tar -xvzf go-ipfs_v0.8.0_linux-amd64.tar.gz
+$ wget https://github.com/ipfs/go-ipfs/releases/download/v0.9.1/go-ipfs_v0.9.1_linux-amd64.tar.gz
+$ tar -xvzf go-ipfs_v0.9.1_linux-amd64.tar.gz
 $ cd go-ipfs
 $ ./ipfs init --profile server
 $ ./install.sh
@@ -83,11 +92,19 @@ Some of the default configurations needs to be changed, in order to get better p
 
 ```
 # cuz xyz
-ipfs config --bool Swarm.DisableBandwidthMetrics true
-# Default only allows storing 10GB, so:
-ipfs config Datastore.StorageMax "200GB"
+$ ipfs config --bool Swarm.DisableBandwidthMetrics true
+
+# Default only allows storing 10GB. At the time of writing, ~650GB of disk space is needed, but this will likely grow fast, and you might forget so:
+$ ipfs config Datastore.StorageMax "2000GB"
+
 # cuz xyz
-ipfs config --json Gateway.PublicGateways '{"localhost": null }'
+$ ipfs config --json Gateway.PublicGateways '{"localhost": null }'
+
+# as outline here: https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size
+$ sysctl -w net.core.rmem_max=2500000
+
+# cuz xyz
+$ ipfs config --bool Gateway.NoFetch true
 ```
 
 
@@ -131,6 +148,41 @@ $ systemctl enable ipfs
 $ systemctl stop ipfs
 ```
 
+### Update IPFS
+If you installed using the instructions listed here, the easiest way to update IPFS is the use `ipfs-update`:
+
+```
+# Stop IPFS:
+$ systemctl stop ipfs
+
+# Then install the new version
+$ wget https://dist.ipfs.io/ipfs-update/v1.7.1/ipfs-update_v1.7.1_linux-amd64.tar.gz
+$ tar -vxf ipfs-update_v1.7.1_linux-amd64.tar.gz
+$ cd ipfs-update
+$ ./install.sh
+$ ipfs-update install 0.9.1
+
+# verify it worked
+$ ipfs version
+# which should return
+ipfs version 0.9.1
+```
+
+Note that regardless of how you choose to update, if you have had IPFS installed for some time, and have been using the example service file we have provided, you may want to check that it says:
+
+```
+PIDFile=/run/ipfs/ipfs.pid
+LimitNOFILE=10240
+
+
+# NOT
+PIDFile=/var/run/ipfs/ipfs.pid
+LimitNOFILE=8192
+```
+
+Finally, make sure you have set all the items listed under [Configure IPFS](#configure-ipfs) - some of them are rather new, and some are updated!
+
+
 ## Setup Hosting
 In order to allow for users to upload and download, you have to setup hosting, with an actual domain as both Chrome and Firefox requires `https://`. If you have a "spare" domain or subdomain you don't mind using for this purpose, go to your domain registrar and point your domain to the IP you want. If you don't, you will need to purchase one.
 
@@ -165,7 +217,7 @@ https://<your.cool.url/storage>/* {
                 Access-Control-Allow-Methods "GET, PUT, HEAD, OPTIONS"
         }
         request_body {
-                max_size 10GB
+                max_size 20GB
         }
 }
 ```
@@ -228,7 +280,7 @@ $ systemctl status caddy
 $ systemctl enable caddy
 # If you want to stop caddy:
 $ systemctl stop caddy
-# If you want to edit your Caddfile, edit it, then run:
+# If you want to edit your Caddyfile, edit it, then run:
 $ caddy reload
 ```
 
@@ -248,53 +300,6 @@ $ ssh user@ipOrURL
 $ yarn build:packages
 $ yarn run colossus --help
 ```
-You can set the PATH to avoid the `yarn run` prefix by:
-```
-$ cd ~/joystream/storage-node/packages/colossus
-$ yarn link
-# Test that it's working with:
-$ colossus --help
-# It should now work globally
-```
-
-## Update Your Storage Node
-To update your storage-node from an old network, it's probably time to update `ipfs` and `caddy`, although older versions _should_ continue to work.
-
-If you `rm -rf ~/.ipfs`, you are also saving a **lot** of storage space, as the content-directory will not be migrated in full.
-
-There are also some changes required in all the .service files, so ideally go through the entire guide!
-
-To upgrade the storage node itself:
-```
-# If you are running as service (which you should)
-$ systemctl stop storage-node
-$ cd ~/joystream/storage-node/packages/colossus
-$ yarn unlink
-$ cd ~/joystream
-$ git pull origin master
-$ rm -rf node modules
-$ yarn cache clean
-$ ./setup.sh
-# this requires you to start a new session. if you are using a vps:
-$ exit
-$ ssh user@ipOrURL
-# on your local machine, just close the terminal and open a new one
-$ cd ~/joystream
-$ yarn build:packages
-$ cd ~/joystream/storage-node/packages/colossus
-$ yarn run colossus --help
-```
-
-If you have been running a storage node previously, and used `.bash_profile` to avoid the `yarn run` prefix, you need to:
-`$ nano ~/.bash_profile`
-Then, uncomment or remove the lines below:
-```
-# Colossus
-alias colossus="/root/storage-node-joystream/packages/colossus/bin/cli.js"  
-alias helios="/root/storage-node-joystream/packages/helios/bin/cli.js"
-```
-For helios, you can instead change the path from `/root/storage-node-joystream/packages/helios/bin/cli.js` -> `/root/joystream/storage-node/packages/helios/bin/cli.js`
-
 
 ### Applying for a Storage Provider opening
 
@@ -349,47 +354,76 @@ $ DEBUG=joystream:* (yarn run) colossus server --key-file <5YourStorageAddress.j
 If you do this, you should see (among other things) something like:
 
 ```
-... :  ________                     _____
-... :  ______(_)__________  __________  /__________________ _______ ___
-... :  _____  /_  __ \_  / / /_  ___/  __/_  ___/  _ \  __ `/_  __ `__ \
-... :  ____  / / /_/ /  /_/ /_(__  )/ /_ _  /   /  __/ /_/ /_  / / / / /
-... :  ___  /  \____/_\__, / /____/ \__/ /_/    \___/\__,_/ /_/ /_/ /_/
-... :  /___/         /____/
-... :  <timestamp>joystream:runtime:base Init
-... :  <timestamp>joystream:runtime:identities Init
-... :  <timestamp>joystream:runtime:identities Initializing key from /root/ <5YourStorageAddress.json>
-... :  <timestamp>joystream:runtime:identities Successfully initialized with address  <5YourStorageAddress>
-... :  <timestamp>joystream:runtime:balances Init
-... :  <timestamp>joystream:runtime:roles Init
-... :  <timestamp>joystream:runtime:assets Init
-... :  <timestamp>joystream:runtime:system Init
-... :  <timestamp>joystream:runtime:base Waiting for chain to be synced before proceeding.
-... :  <timestamp>joystream:sync Sync run started.
-... :  [HPM] Proxy created: function (path, req) {
-... :    // we get the full path here so it needs to match the path where
-... :    // it is used by the openapi initializer
-... :    return path.match('^/asset/v0') && (req.method === 'GET' || req.method === 'HEAD')
-... :  }  -> http://localhost:8080/
-... :  Starting API server...
-... :  API server started. { address: '::', family: 'IPv6', port: 3000 }
-... :  <timestamp>joystream:storage:storage IPFS node is up with identity:  <ipfsPeerId>
-... :  <timestamp>joystream:colossus announcing public url
-... :  <timestamp>joystream:sync Sync run completed, set <n> new relationships to ready
-... :  <timestamp>joystream:runtime:base:tx Submitted: {"nonce":"<nonce>","txhash":"<hash>","tx":"<hash>"}
-... :  <timestamp>joystream:runtime:base:tx Finalized {"nonce":"<nonce>","txhash":"<hash>"}
+...  ________                     _____
+...  ______(_)__________  __________  /__________________ _______ ___
+...  _____  /_  __ \_  / / /_  ___/  __/_  ___/  _ \  __ `/_  __ `__ \
+...  ____  / / /_/ /  /_/ /_(__  )/ /_ _  /   /  __/ /_/ /_  / / / / /
+...  ___  /  \____/_\__, / /____/ \__/ /_/    \___/\__,_/ /_/ /_/ /_/
+...  /___/         /____/
+... joystream:runtime:base Init
+... joystream:runtime:identities Init
+... joystream:runtime:identities Initializing key from /root/<5YourStorageAddress.json>
+... joystream:runtime:identities Successfully initialized with address <5YourStorageAddress>
+... joystream:runtime:balances Init
+... joystream:runtime:roles Init
+... joystream:runtime:assets Init
+... joystream:runtime:system Init
+... joystream:runtime:base Waiting for chain to be synced before proceeding.
+... joystream:colossus Fetching data objects
+... joystream:colossus:api:asset created path handler
+... [HPM] Proxy created: function (path, req) {
+...   // we get the full path here so it needs to match the path where
+...   // it is used by the openapi initializer
+...   return path.match('^/asset/v0') && (req.method === 'GET' || req.method === 'HEAD')
+... }  -> http://localhost:8080/
+... Starting API server...
+... API server started. { address: '::', family: 'IPv6', port: 3000 }
+... joystream:storage:storage IPFS node is up with identity: <ipfsPeerId>
+... joystream:colossus announcing public url
+... joystream:runtime:base:tx Submitted: {"nonce":"<nonce>","txhash":"<txhash>","tx":"<tx>"}
 ```
 
 If everything is working smoothly, you will now start syncing the `content directory`.
 
-Note that unless you run this is a [service](#run-storage-node-as-a-service), you now have to open a second terminal for the remaining steps.
-
-#### Check that you are syncing
+### Check that you are syncing
 After you've had it running for a bit (>1 min):
 ```
 $ cd ~/joystream/
 $ yarn run helios
 ```
 If everything is working, you should rather quickly, see your SP as active, with correct `workerId` and URL.
+
+Then paste the following in your browser:
+`https://<your.cool.url>/storage/swagger.json`
+Which should return a json.
+
+That means Colossus, ipfs and your hosting are all working!
+
+### Set an Empty Storage URL
+
+An important to remember for the Storage Providers is that stopping and starting their service, or being "active" during the long sync process, will "ruin" the user experience for content consumers and creators, if not done correctly. The former group will not get the assets they want, and the latter may see their uploads fail, if your is randomly selected as the liason, despite being offline.
+
+To avoid doing this, which should get you fired, or at the very least a warning, you have to set an empty `public-url`:
+
+The easiest way of doing so fast:
+
+```
+$ cd ~/joystream
+$ DEBUG=joystream:* yarn run colossus server --key-file <5YourStorageAddress.json> --public-url  --provider-id <your_storage-id>
+```
+You can (should) kill the process as soon as you see the line below in the log.
+```
+joystream:colossus announcing public url
+```
+
+Verify you succeeded, by waiting a couple minutes, then:
+```
+$ cd ~/joystream
+$ yarn run helios
+
+# should for <your_storage_id> produce:
+<your_storage_id> No url set, skipping
+```
 
 ### Run storage node as a service
 
@@ -408,43 +442,183 @@ After=network.target ipfs.service joystream-node.service
 [Service]
 User=root
 WorkingDirectory=/root/joystream/storage-node
-LimitNOFILE=8192
+LimitNOFILE=10000
 Environment=DEBUG=joystream:*,-joystream:util:ranges
 ExecStart=/root/.volta/bin/node \
         packages/colossus/bin/cli.js \
         --key-file <5YourStorageAddress.json> \
-        --public-url https://<your.cool.url>/storage/ \
-        --provider-id <your_storage-id>
+        --public-url \
+#        --public-url https://<your.cool.url>/storage/ \
+        --provider-id <your_storage_id>
 Restart=on-failure
 StartLimitInterval=600
 
 [Install]
 WantedBy=multi-user.target
 ```
+**Note**
+Before you have completed syncing the content directory, comment out the line with your "actual" `--public-url` as shown in the examples, eg:
+
+```
+        --public-url \
+#        --public-url https://<your.cool.url>/storage/ \
+```
+
+
+ More [here](#enable-the-public-url-when-synced)
+
 Save and exit. Close `colossus` if it's still running, then:
 ```
 $ systemctl start storage-node
-# If everything works, you should get an output. Verify with:
+# If everything works, you should get no output.
+
+# Verify with:
 $ systemctl status storage-node
-# Which should produce something like:
+
+# Which, if you have NOT finished syncing, should produce something like:
 ---
 ● storage-node.service - Joystream Storage Node
 ...
-
-<timestamp> localhost node[36281]: <timestamp> joystream:sync Starting sync run...
-<timestamp> localhost node[36281]: <timestamp> joystream:sync sync run complete
-<timestamp> localhost node[36281]: <timestamp> joystream:sync Starting sync run...
-<timestamp> localhost node[36281]: <timestamp> joystream:sync sync run complete
+... joystream:colossus announcing complete.
+... joystream:storage:storage Pinning hash: <ipfsId> content-id: <contentId>
+... joystream:sync Sync run completed, set 0 new relationships to ready
+... joystream:storage:storage Pinned <ipfsId>
+... joystream:sync Creating new storage relationship for <joystreamAddress>
 ...
 ---
+
+# If you HAVE finished syncing, and is restarting, it should produce something like:
+---
+● storage-node.service - Joystream Storage Node
+...
+... joystream:colossus Fetching data objects
+... joystream:sync objects syncing: 191
+... joystream:sync objects local: 4837
+... joystream:colossus Fetching data objects
+... joystream:sync objects syncing: 180
+... joystream:sync objects local: 5182
+... joystream:colossus Fetching data objects
+...
+---
+
 # To have colossus start automatically at reboot:
 $ systemctl enable storage-node
 # If you want to stop the storage node, either to edit the storage-node.service file or some other reason:
 $ systemctl stop storage-node
 ```
 
+### Enable the Public URL When Synced
+After your node is fully synced, which you will know by checking the logs of Colossus, and seeing no, or just a few, items still syncing:
+```
+$ journalctl -f -n 200 -u storage-node.service
+
+# Which should return something like:
+... joystream:sync objects syncing: 0
+... joystream:sync objects local: 11915
+```
+
+Note `objects syncing: 0`, or some very low number, like 1 or 2
+Note `objects local: 11915`, where you compare the number to the (extended) output of `helios`:
+```
+$ cd ~/joystream
+$ yarn run helios
+
+# which will (after a minute or so) show:
+
+Found <n> staked providers
+
+...
+
+<id> <last.storageprovider.url/storage/ - OK
+
+Data Directory objects:
+12540 created
+11915 accepted
+11137 unique accepted hashes
+
+...
+
+# You can kill the process after this.
+```
+If the number of `accepted` in `helios` matches the number of `joystream:sync objects local` in your log (or is off by a few), you are done syncing!
+
+
+#### Enable the Public URL
+There are two ways of doing this. As it takes quite a long time for a restarted storage-node to be fully operational, the first method, which is a little more difficult, is preferable:
+
+1. Avoiding downtime:
+```
+$ cd ~/joystream/utils/
+$ nano utils/stringToBytes.ts
+
+# Edit the constant:
+const stringToConvert = "example"
+
+# to:
+const stringToConvert = "https://<your.cool.url>/storage/"
+
+# save and exit, then:
+$ yarn build && node lib/stringToBytes.js
+
+# which should produce a long hex, 0xmyStorageUrlAsHexEncodedBytes
+```
+Using the "Extrinsics" tab in [Pioneer](https://testnet.joystream.org/#/extrinsics)
+- Select `storageWorkingGroup - updateRoleStorage`
+- Choose your role key `5YourStorageAddress`
+- Set the inputs `<your_storage_id>` and `0xmyStorageUrlAsHexEncodedBytes`
+- Submit
+
+Optionally, as it will minimize the damage if your storage node goes down:
+```
+$ nano /etc/systemd/system/storage-node.service
+
+# Switch which line is commented out, from:
+---
+        --public-url \
+#        --public-url https://<your.cool.url>/storage/ \
+---
+to
+---
+#        --public-url \
+        --public-url https://<your.cool.url>/storage/ \
+---
+
+# Save and close, then:
+$ systemctl daemon-reload
+```
+
 ### Verify everything is working
 
+Wait a minute or so, then confirm `helios` has your real URL, that you are synced, and have the files you think locally:
+```
+$ cd ~/joystream
+$ yarn run helios
+
+# which will (after a minute or so) show:
+
+Found <n> staked providers
+
+...
+<your_storage_id> https://<your.cool.url>/storage/ - OK
+...
+
+Data Directory objects:
+<x> created
+<y> accepted
+<z> unique accepted hashes
+
+...
+
+    Final Result for provider <your_storage_id>
+    fetched: <y>/<y>
+    failed: 0
+    took: <t>s
+
+# You can kill the process after this.
+```
+Hopefully, `<t>` isn't too large of a number, and you are not at the bottom. If that is the case, you may need to upgrade your hardware, and that will require you to go through this again :D
+
+#### Further Checks
 In your browser, find and click on an uploaded media file [here](https://testnet.joystream.org//#/media/), then open the developer console, and find the URL of the asset. Copy the `<content-id>`, ie. whatever comes after the last `/`.
 
 Then paste the following in your browser:
@@ -453,8 +627,138 @@ Which should return a json.
 
 And:
 `https://<your.cool.url>/storage/asset/v0/<content-id>`.
-(eg. `5GPhGYaGumtdpFYowMHY15hsdZVZUyEUe2trgh2vq7zGcFKx`)
+(eg. `5ESiKRXVJGmXvRmgyFRR7QPnbXj29GjJ5DE3ZragDySPMUWJ`)
 If the content starts playing, that means you are good!
+
+## Update Your Storage Node
+
+If you have been running a Storage Node on previous network, but not yet on `antioch/sumer`, go [here](#update-older-storage-nodes).
+
+If you have been running a Storage Node on `antioch/sumer`:
+- First, update IPFS [here](#update-ipfs)
+- Then, continue below
+
+### Update Colossus
+
+An important to remember for the Storage Providers is that stopping and starting their service will "ruin" the user experience for content consumers and creators, if not done correctly. The former group will not get the assets they want, and the latter may see their uploads fail, if your is randomly selected as the liason, despite being offline.
+
+#### Change Your Storage URL
+This can be done in one of two ways:
+
+1. Using the "Extrinsics" tab in [Pioneer](https://testnet.joystream.org/#/extrinsics)
+- Select `storageWorkingGroup - updateRoleStorage`
+- Choose your role key `5YourStorageAddress`
+- Set the inputs `<your_storage_id>` and `0x00`
+- Submit
+
+2. Restart `colossus` with an empty `--public-url`.
+
+If you are running as a service:
+```
+$ nano /etc/systemd/system/storage-node.service
+
+# then, delete the URL, leaving you with:
+...
+  --public-url \
+...
+# save and exit
+
+$ systemctl daemon-reload
+$ systemctl restart storage-node
+```
+
+In either case, wait a couple minutes, then verify with:
+```
+$ cd ~/joystream
+$ yarn run helios
+
+
+# If you passed an empty string (option 1):
+<your_storage_id> No url set, skipping
+
+# If you set it `0x00` in pioneer (option 2):
+<your_storage_id> - Request path contains unescaped characters
+```
+
+If your actual `public-url` still shows up, wait a little longer or try again.
+
+#### Get the updated version
+
+```
+# If you are running as service (which you should)
+$ systemctl stop storage-node
+$ cd ~/joystream/storage-node/packages/colossus
+$ yarn unlink
+$ cd ~/joystream
+$ git pull origin master
+$ rm -rf node modules
+$ yarn cache clean
+$ ./setup.sh
+# this requires you to start a new session. if you are using a vps:
+$ exit
+$ ssh user@ipOrURL
+# on your local machine, just close the terminal and open a new one
+$ cd ~/joystream
+$ yarn build:packages
+$ cd ~/joystream/storage-node/packages/colossus
+$ yarn run colossus --help
+```
+
+#### Start Up
+Now, go [here](#run-storage-node-as-a-service).
+
+## Update Older Storage Nodes
+If you haven't been running a node in a long time, it's probably best to start fresh. If you don't want to, a quick guide, that may get you into trouble, can be found below:
+
+### Update IPFS and Caddy
+
+It's probably time to update `caddy` (although older versions _should_ continue to work). Go [here](#setup-hosting).
+
+It's definitely time to update `ipfs` (older version will probably work, but you will likely get fired as `helios` won't work correctly).
+
+If you, for some reason is still running them:
+```
+$ systemctl stop ipfs.service && systemctl stop storage-node.service
+```
+Delete your IPFS repo, with: `rm -rf ~/.ipfs`. You will save a **lot** of storage space, as the content-directory wasn't migrated.
+
+How to install the latest version of IPFS can be found [here](#install-ipfs).
+
+### Update Colossus
+
+```
+# If you are running as service (which you should)
+$ systemctl stop storage-node
+$ cd ~/joystream/storage-node/packages/colossus
+$ yarn unlink
+$ cd ~/joystream
+$ git pull origin master
+$ rm -rf node modules
+$ yarn cache clean
+$ ./setup.sh
+# this requires you to start a new session. if you are using a vps:
+$ exit
+$ ssh user@ipOrURL
+# on your local machine, just close the terminal and open a new one
+$ cd ~/joystream
+$ yarn build:packages
+$ cd ~/joystream/storage-node/packages/colossus
+$ yarn run colossus --help
+```
+
+#### Optional Cleanup
+
+If you have been running a storage node previously, and used `.bash_profile` to avoid the `yarn run` prefix, you need to:
+`$ nano ~/.bash_profile`
+Then, comment out, or simple delete, the lines below:
+```
+# Colossus
+alias colossus="/root/storage-node-joystream/packages/colossus/bin/cli.js"  
+alias helios="/root/storage-node-joystream/packages/helios/bin/cli.js"
+```
+
+### Start Up
+Now, go [here](#run-storage-node-as-a-service).
 
 # Troubleshooting
 If you had any issues setting it up, you may find your answer here!
