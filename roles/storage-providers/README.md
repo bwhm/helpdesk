@@ -55,7 +55,7 @@ The instructions below will assume you are running as `root`. This makes the ins
 
 Note that this has been tested on a fresh images of `Ubuntu 20.04 LTS`. You may run into some troubles with `Debian`.
 
-The system has shown to be quite resource intensive, so you should choose a VPS with specs equivalent to [Linode 8GB](https://www.linode.com/pricing/) or better (not an affiliate link).
+The system has shown to be quite resource intensive, so you should choose a VPS with specs AT LEAST equivalent to [Linode 8GB](https://www.linode.com/pricing/) or better (not an affiliate link). Note that you unless you go for a very expensive out of the box node, have to add extra storage separately, and configure IPFS to use that disk.
 
 Please note that unless there are any openings for new storage providers (which you can check in [Pioneer](https://testnet.joystream.org/) under `Working Groups` -> `Opportunities`), you will not be able to join. Applying to the opening is easiest in Pioneer, but once hired, you no longer need it. Actions you may want to perform after getting hired are easiest to carry out with the [CLI](/tools/cli/README.md#working-groups). With this, you can configure things like:
 - changing your reward destination address
