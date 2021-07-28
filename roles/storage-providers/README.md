@@ -208,7 +208,7 @@ $ nano ~/Caddyfile
 # Paste in everything below the stapled line
 ---
 # Storage Node API
-https://<your.cool.url/storage>/* {
+https://<your.cool.url>/storage/* {
         route /storage/* {
                 uri strip_prefix /storage
                 reverse_proxy localhost:3000
@@ -449,6 +449,7 @@ ExecStart=/root/.volta/bin/node \
         --key-file <5YourStorageAddress.json> \
         --public-url \
 #        --public-url https://<your.cool.url>/storage/ \
+#        --maxSync 100 \
         --provider-id <your_storage_id>
 Restart=on-failure
 StartLimitInterval=600
@@ -456,7 +457,7 @@ StartLimitInterval=600
 [Install]
 WantedBy=multi-user.target
 ```
-**Note**
+**Note 1**
 Before you have completed syncing the content directory, comment out the line with your "actual" `--public-url` as shown in the examples, eg:
 
 ```
@@ -464,8 +465,11 @@ Before you have completed syncing the content directory, comment out the line wi
 #        --public-url https://<your.cool.url>/storage/ \
 ```
 
+**Note 2**
+Unless your node is running on a machine with **great** specs, you may want to reduce the `maxSync`. It's commented out above, but the default value (200) will have IPFS consuming a lot of resources, and potentially crash...
 
- More [here](#enable-the-public-url-when-synced)
+
+More [here](#enable-the-public-url-when-synced)
 
 Save and exit. Close `colossus` if it's still running, then:
 ```
@@ -549,19 +553,42 @@ There are two ways of doing this. As it takes quite a long time for a restarted 
 1. Avoiding downtime:
 ```
 $ cd ~/joystream/utils/
-$ nano src/stringToBytes.ts
+$ yarn
+$ nano api-scripts/scripts/tobytes.js
 
-# Edit the constant:
-const stringToConvert = "example"
+# Paste in everything below the stapled line
+---
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const api_1 = require("@polkadot/api");
+const types_1 = require("@polkadot/types");
+const types_2 = require("@joystream/types");
+async function main() {
+    const provider = new api_1.WsProvider('ws://127.0.0.1:9944');
+    const api = await api_1.ApiPromise.create({ provider, types: types_2.types });
+    const input = "https://<your.cool.url>/storage/";
+    const output = new types_1.Bytes(api.registry, input);
+    /*
+    Some extrinsics require input as "Bytes".
+    Replace <myInputString> with the string you want, and the output can be pasted in.
+    */
+    console.log("input string", input);
+    console.log("output, as bytes toHex", output.toHex());
+    api.disconnect();
+}
+main();
 
-# to:
-const stringToConvert = "https://<your.cool.url>/storage/"
-
+---
 # save and exit, then:
-$ yarn build && node lib/stringToBytes.js
+$ node api-scripts/scripts/tobytes.js
 
-# which should produce a long hex, 0xmyStorageUrlAsHexEncodedBytes
+# which should produce:
+
+input string https://<your.cool.url>/storage/
+output, as bytes toHex 0xmyStorageUrlAsHexEncodedBytes
 ```
+Note that you see some errors after... This will be fixed soon (tm).
+
 Using the "Extrinsics" tab in [Pioneer](https://testnet.joystream.org/#/extrinsics)
 - Select `storageWorkingGroup - updateRoleStorage`
 - Choose your role key `5YourStorageAddress`
