@@ -329,7 +329,7 @@ Then set it on-chain with:
 
 ```
 $ cd ~/joystream/distributor-node
-$ yarn joystream-distributor operator:set-metadata <bucketFamilyId>:<bucketId> -w <workerId> -i /path/to/metadata.json
+$ yarn joystream-distributor operator:set-metadata -B <bucketFamilyId>:<bucketId> -w <workerId> -i /path/to/metadata.json
 ```
 
 ## Deploy the Distributor Node
